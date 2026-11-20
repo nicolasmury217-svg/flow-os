@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Flow</string>
+    <string name="bar_hint">Chercher une appli</string>
+    <string name="no_result">Aucune appli</string>
+    <string name="clear_search">Effacer la recherche</string>
+</resources>

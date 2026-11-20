@@ -1,0 +1,33 @@
+# Données locales, sauvegardes, téléchargements et outils
+backup
+backup-redmi/
+downloads
+captures/
+phase4/
+tools/
+
+# Journaux et diagnostics personnels (numéros de série, comptes, etc.)
+JOURNAL.md
+DIAGNOSTIC*.md
+FICHIERS-PRETS*.md
+PLAN-REDMI-ROM.md
+RAPPORT-*.md
+MEMOIRE-CLAUDE.md
+
+# Assets tiers ou trop lourds
+assets/sonneries/
+assets/bootanimation-flow-os.zip
+assets/wallpaper-pixel-arc.png
+
+# Build Android / Gradle / macOS
+**/build/
+**/.gradle/
+**/.kotlin/
+**/local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+.idea/
+*.iml
+.DS_Store
