@@ -1,10 +1,15 @@
 # Flow OS
 
-Projet d'environnement Android léger et fluide basé sur **LineageOS** + **MindTheGapps**, accompagné d'un launcher maison en Kotlin / Jetpack Compose et de son jingle vidéo.
+**Flow OS** est un environnement Android léger et rapide conçu pour **redonner de la vitesse et de la fluidité à tout téléphone Android compatible**.
+
+## Pourquoi Flow OS améliore la vitesse du téléphone
+
+- **Sur tout téléphone Android compatible (Android 10+ / API 29+)** : le **Flow Launcher** remplace les surcouches lourdes par un accueil minimaliste (~4 Mo, faible empreinte mémoire, zéro télémétrie, zéro pub) pour une navigation plus réactive au quotidien.
+- **Sur les téléphones compatibles LineageOS** : combiné à **LineageOS** + **MindTheGapps** et à un allègement des services inutiles, Flow OS libère de la RAM au repos, réduit les processus en arrière-plan et améliore nettement la fluidité générale — idéal pour donner une seconde vie à un appareil plus ancien.
 
 ## Contenu du dépôt
 
-- [`launcher/`](launcher/) — **Flow Launcher** (`os.flow.launcher`) :
+- [`launcher/`](launcher/) — **Flow Launcher** (`os.flow.launcher`, Android 10+) :
   - Accueil multi-pages façon Pixel avec dock fixe et glisser-déposer.
   - **Dossiers** sur l'accueil (aperçu 2×2, renommage en ligne, dissolution automatique).
   - **Icônes thématiques Material You** teintées selon la couleur dominante du fond d'écran.
@@ -13,7 +18,7 @@ Projet d'environnement Android léger et fluide basé sur **LineageOS** + **Mind
   - **Widget Météo** intégré + **page Widgets libre** pour ajouter n'importe quel widget Android.
   - **Tiroir d'applis** sombre avec recherche instantanée (normalisation des accents) et **Réglages Flow** (grille 4/5 colonnes, gestes rapides, applis masquées).
   - Intro vidéo Flow OS au premier déverrouillage après démarrage.
-- [`jingle/`](jingle/) — **Jingle Flow** (`os.flow.jingle`) : petite appli autonome qui lance le jingle vidéo + audio Flow OS en plein écran d'un simple appui.
+- [`jingle/`](jingle/) — **Jingle Flow** (`os.flow.jingle`, Android 11+) : petite appli autonome qui lance le jingle vidéo + audio Flow OS en plein écran d'un simple appui.
 - [`assets/`](assets/) — Logo, fond d'écran et vidéo d'intro Flow OS.
 
 ## Compilation
