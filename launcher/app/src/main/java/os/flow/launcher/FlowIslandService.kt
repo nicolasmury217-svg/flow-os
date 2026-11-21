@@ -230,7 +230,8 @@ class FlowIslandService : Service() {
 
     private fun renderAlert(alert: IslandAlert) {
         pill.background = pillBackground(dp(26).toFloat())
-        pill.setPadding(dp(14), dp(10), dp(16), dp(10))
+        // Espace en haut pour que le poinçon caméra ne masque jamais le titre.
+        pill.setPadding(dp(16), dp(28), dp(16), dp(12))
         pill.setOnClickListener {
             runCatching { alert.contentIntent?.send() }
             mainHandler.removeCallbacks(clearAlertRunnable)
@@ -265,54 +266,62 @@ class FlowIslandService : Service() {
                     text = alert.text
                     setTextColor(Color.parseColor("#D0D0D6"))
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-                    maxLines = 1
+                    maxLines = 2
                     ellipsize = TextUtils.TruncateAt.END
                 },
             )
         }
-        row.addView(textCol, LinearLayout.LayoutParams(dp(248), LinearLayout.LayoutParams.WRAP_CONTENT))
+        row.addView(textCol, LinearLayout.LayoutParams(dp(256), LinearLayout.LayoutParams.WRAP_CONTENT))
         pill.addView(row)
     }
 
     private fun renderMediaCompact(media: NowPlaying) {
-        pill.background = pillBackground(dp(18).toFloat())
-        pill.setPadding(dp(10), dp(5), dp(12), dp(5))
+        pill.background = pillBackground(dp(22).toFloat())
+        pill.setPadding(dp(14), dp(6), dp(14), dp(8))
         pill.setOnClickListener {
             mediaExpanded = true
             mainHandler.removeCallbacks(collapseMediaRunnable)
             mainHandler.postDelayed(collapseMediaRunnable, 6_000L)
             render()
         }
-        val row = LinearLayout(this).apply {
+        // Rangée du haut : icône à gauche de la caméra, état lecture à droite (rien derrière le poinçon).
+        val topRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
         val iconView = ImageView(this).apply {
             runCatching { setImageDrawable(packageManager.getApplicationIcon(media.packageName)) }
         }
-        row.addView(iconView, LinearLayout.LayoutParams(dp(20), dp(20)))
-        val title = TextView(this).apply {
-            text = media.title
-            setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            maxLines = 1
-            ellipsize = TextUtils.TruncateAt.END
-            setPadding(dp(8), 0, dp(8), 0)
-        }
-        row.addView(title, LinearLayout.LayoutParams(dp(136), LinearLayout.LayoutParams.WRAP_CONTENT))
+        topRow.addView(iconView, LinearLayout.LayoutParams(dp(18), dp(18)))
+        topRow.addView(View(this), LinearLayout.LayoutParams(0, dp(20), 1f))
         val stateBadge = TextView(this).apply {
             text = if (media.isPlaying) "♫" else "❚❚"
             setTextColor(if (media.isPlaying) Color.parseColor("#1DB954") else Color.parseColor("#9A9AA2"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         }
-        row.addView(stateBadge)
-        pill.addView(row)
+        topRow.addView(stateBadge)
+        pill.addView(topRow, LinearLayout.LayoutParams(dp(220), LinearLayout.LayoutParams.WRAP_CONTENT))
+
+        // Titre complet sous la caméra, avec défilement fluide (marquee) s'il est long.
+        val title = TextView(this).apply {
+            text = if (media.artist.isNotEmpty()) "${media.title} · ${media.artist}" else media.title
+            setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            gravity = Gravity.CENTER_HORIZONTAL
+            isSingleLine = true
+            ellipsize = TextUtils.TruncateAt.MARQUEE
+            marqueeRepeatLimit = -1
+            isSelected = true
+            setPadding(0, dp(3), 0, 0)
+        }
+        pill.addView(title, LinearLayout.LayoutParams(dp(220), LinearLayout.LayoutParams.WRAP_CONTENT))
     }
 
     private fun renderMediaExpanded(media: NowPlaying) {
         pill.background = pillBackground(dp(28).toFloat())
-        pill.setPadding(dp(16), dp(12), dp(16), dp(12))
+        // Espace en haut pour dégager le poinçon caméra.
+        pill.setPadding(dp(16), dp(28), dp(16), dp(12))
         pill.setOnClickListener {
             mediaExpanded = false
             mainHandler.removeCallbacks(collapseMediaRunnable)
@@ -335,7 +344,7 @@ class FlowIslandService : Service() {
         val iconView = ImageView(this).apply {
             runCatching { setImageDrawable(packageManager.getApplicationIcon(media.packageName)) }
         }
-        header.addView(iconView, LinearLayout.LayoutParams(dp(36), dp(36)))
+        header.addView(iconView, LinearLayout.LayoutParams(dp(38), dp(38)))
 
         val metaCol = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -347,8 +356,10 @@ class FlowIslandService : Service() {
                 setTextColor(Color.WHITE)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
                 typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                maxLines = 1
-                ellipsize = TextUtils.TruncateAt.END
+                isSingleLine = true
+                ellipsize = TextUtils.TruncateAt.MARQUEE
+                marqueeRepeatLimit = -1
+                isSelected = true
             },
         )
         if (media.artist.isNotEmpty()) {
@@ -357,12 +368,14 @@ class FlowIslandService : Service() {
                     text = media.artist
                     setTextColor(Color.parseColor("#B5B5BE"))
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-                    maxLines = 1
-                    ellipsize = TextUtils.TruncateAt.END
+                    isSingleLine = true
+                    ellipsize = TextUtils.TruncateAt.MARQUEE
+                    marqueeRepeatLimit = -1
+                    isSelected = true
                 },
             )
         }
-        header.addView(metaCol, LinearLayout.LayoutParams(dp(240), LinearLayout.LayoutParams.WRAP_CONTENT))
+        header.addView(metaCol, LinearLayout.LayoutParams(dp(250), LinearLayout.LayoutParams.WRAP_CONTENT))
         pill.addView(header)
 
         val controls = LinearLayout(this).apply {
