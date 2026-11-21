@@ -33,6 +33,17 @@ data class IslandAlert(
     val contentIntent: PendingIntent?,
 )
 
+/** Appel entrant ou en cours détecté via les notifications d'appel (téléphone, WhatsApp, Messenger, Meet…). */
+data class IslandCall(
+    val key: String,
+    val packageName: String,
+    val callerName: String,
+    val subtitle: String,
+    val answerIntent: PendingIntent?,
+    val declineIntent: PendingIntent?,
+    val contentIntent: PendingIntent?,
+)
+
 /**
  * Service d'écoute des notifications (opt-in dans les réglages Android) :
  * - alimente les pastilles sur les icônes ;
@@ -53,16 +64,19 @@ class FlowNotificationListener : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         publishActive()
+        publishActiveCall()
         registerMediaSessions()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         publishActive()
-        if (sbn != null) emitAlert(sbn)
+        publishActiveCall()
+        if (sbn != null && !isCallNotification(sbn.notification)) emitAlert(sbn)
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         publishActive()
+        publishActiveCall()
     }
 
     override fun onListenerDisconnected() {
@@ -70,6 +84,7 @@ class FlowNotificationListener : NotificationListenerService() {
         unregisterMediaSessions()
         _badgedPackages.value = emptySet()
         _nowPlaying.value = null
+        _activeCall.value = null
     }
 
     private fun registerMediaSessions() {
@@ -149,6 +164,57 @@ class FlowNotificationListener : NotificationListenerService() {
         )
     }
 
+    private fun isCallNotification(n: Notification?): Boolean {
+        if (n == null) return false
+        if (n.category == Notification.CATEGORY_CALL) return true
+        val extras = n.extras ?: return false
+        return extras.containsKey(Notification.EXTRA_CALL_PERSON) ||
+            extras.containsKey(Notification.EXTRA_ANSWER_INTENT) ||
+            extras.containsKey(Notification.EXTRA_HANG_UP_INTENT)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun publishActiveCall() {
+        val found = runCatching {
+            activeNotifications.orEmpty().firstNotNullOfOrNull { sbn ->
+                val n = sbn.notification ?: return@firstNotNullOfOrNull null
+                if (!isCallNotification(n)) return@firstNotNullOfOrNull null
+                val extras = n.extras
+                val person = extras?.getParcelable<android.app.Person>(Notification.EXTRA_CALL_PERSON)
+                val caller = person?.name?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+                    ?: extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+                    ?: "Appel entrant"
+
+                var answerIntent = extras?.getParcelable<PendingIntent>(Notification.EXTRA_ANSWER_INTENT)
+                var declineIntent = extras?.getParcelable<PendingIntent>(Notification.EXTRA_DECLINE_INTENT)
+                    ?: extras?.getParcelable(Notification.EXTRA_HANG_UP_INTENT)
+
+                n.actions.orEmpty().forEach { act ->
+                    val label = act.title?.toString().orEmpty()
+                    when (classifyCallAction(label)) {
+                        CallActionKind.ANSWER -> if (answerIntent == null) answerIntent = act.actionIntent
+                        CallActionKind.DECLINE -> if (declineIntent == null) declineIntent = act.actionIntent
+                        null -> Unit
+                    }
+                }
+
+                val subtitle = extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim().orEmpty()
+                    .ifEmpty { if (answerIntent != null) "Appel entrant" else "Appel en cours" }
+
+                IslandCall(
+                    key = sbn.key,
+                    packageName = sbn.packageName,
+                    callerName = caller,
+                    subtitle = subtitle,
+                    answerIntent = answerIntent,
+                    declineIntent = declineIntent,
+                    contentIntent = n.contentIntent,
+                )
+            }
+        }.getOrNull()
+        _activeCall.value = found
+    }
+
     private fun publishActive() {
         val pkgs = runCatching {
             activeNotifications.orEmpty()
@@ -177,6 +243,13 @@ class FlowNotificationListener : NotificationListenerService() {
 
         private val _latestAlert = MutableStateFlow<IslandAlert?>(null)
         val latestAlert: StateFlow<IslandAlert?> = _latestAlert.asStateFlow()
+
+        private val _activeCall = MutableStateFlow<IslandCall?>(null)
+        val activeCall: StateFlow<IslandCall?> = _activeCall.asStateFlow()
+
+        fun clearCall(key: String) {
+            if (_activeCall.value?.key == key) _activeCall.value = null
+        }
 
         fun clearAlert(id: Long) {
             if (_latestAlert.value?.id == id) _latestAlert.value = null

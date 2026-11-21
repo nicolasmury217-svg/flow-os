@@ -45,6 +45,7 @@ class FlowIslandService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private var nowPlaying: NowPlaying? = null
+    private var activeCall: IslandCall? = null
     private var activeAlert: IslandAlert? = null
     private var chargingText: String? = null
     private var mediaExpanded = false
@@ -89,6 +90,12 @@ class FlowIslandService : Service() {
         buildOverlay()
         registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
+        scope.launch {
+            FlowNotificationListener.activeCall.collect { call ->
+                activeCall = call
+                render()
+            }
+        }
         scope.launch {
             FlowNotificationListener.nowPlaying.collect { media ->
                 nowPlaying = media
@@ -177,17 +184,100 @@ class FlowIslandService : Service() {
         TransitionManager.beginDelayedTransition(container, transition)
         pill.removeAllViews()
 
+        val call = activeCall
         val alert = activeAlert
         val charge = chargingText
         val media = nowPlaying
 
         when {
+            call != null -> renderCall(call)
             alert != null -> renderAlert(alert)
             charge != null -> renderCharging(charge)
             media != null && mediaExpanded -> renderMediaExpanded(media)
             media != null -> renderMediaCompact(media)
             else -> renderIdle()
         }
+    }
+
+    /** Carte d'appel entrant / en cours façon Dynamic Island : nom + boutons Raccrocher (rouge) / Décrocher (vert). */
+    private fun renderCall(call: IslandCall) {
+        pill.background = pillBackground(dp(30).toFloat())
+        // Dégage la barre d'état pour que les boutons Décrocher / Raccrocher répondent au quart de tour.
+        pill.setPadding(dp(16), dp(38), dp(14), dp(14))
+        pill.setOnClickListener {
+            runCatching { call.contentIntent?.send() }
+        }
+
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val iconView = ImageView(this).apply {
+            runCatching { setImageDrawable(packageManager.getApplicationIcon(call.packageName)) }
+        }
+        row.addView(iconView, LinearLayout.LayoutParams(dp(36), dp(36)))
+
+        val textCol = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(10), 0, dp(8), 0)
+        }
+        textCol.addView(
+            TextView(this).apply {
+                text = call.subtitle
+                setTextColor(Color.parseColor("#A8A8B2"))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+            },
+        )
+        textCol.addView(
+            TextView(this).apply {
+                text = call.callerName
+                setTextColor(Color.WHITE)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                isSingleLine = true
+                ellipsize = TextUtils.TruncateAt.MARQUEE
+                marqueeRepeatLimit = -1
+                isSelected = true
+            },
+        )
+        row.addView(textCol, LinearLayout.LayoutParams(dp(162), LinearLayout.LayoutParams.WRAP_CONTENT))
+
+        fun circleBtn(symbol: String, bgHex: String, onTap: () -> Unit): TextView = TextView(this).apply {
+            text = symbol
+            setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor(bgHex))
+            }
+            setOnClickListener { onTap() }
+        }
+
+        if (call.declineIntent != null) {
+            val lp = LinearLayout.LayoutParams(dp(42), dp(42)).apply { marginEnd = dp(8) }
+            row.addView(
+                circleBtn("✕", "#FF3B30") {
+                    runCatching { call.declineIntent.send() }
+                    FlowNotificationListener.clearCall(call.key)
+                },
+                lp,
+            )
+        }
+        if (call.answerIntent != null) {
+            row.addView(
+                circleBtn("📞", "#34C759") {
+                    runCatching { call.answerIntent.send() }
+                },
+                LinearLayout.LayoutParams(dp(42), dp(42)),
+            )
+        }
+
+        pill.addView(row)
     }
 
     private fun renderIdle() {
