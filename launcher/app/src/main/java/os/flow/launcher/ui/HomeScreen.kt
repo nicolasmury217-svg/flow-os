@@ -9,10 +9,14 @@ import android.os.Bundle
 import android.app.KeyguardManager
 import android.app.WallpaperColors
 import android.app.WallpaperManager
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
+import android.os.BatteryManager
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
@@ -646,6 +650,72 @@ private fun Glance(light: Boolean, vm: HomeViewModel) {
             fontSize = 56.sp, fontWeight = FontWeight.Light, color = ink,
             style = LocalTextStyle.current.copy(shadow = shadow),
         )
+        LiveGlanceStrip(vm, ink, textStyle)
+    }
+}
+
+/** Bandeau contextuel sous l'heure : titre en cours de lecture (play/pause/suivant) ou état de charge. */
+@Composable
+private fun LiveGlanceStrip(vm: HomeViewModel, ink: Color, textStyle: androidx.compose.ui.text.TextStyle) {
+    val media by vm.nowPlaying.collectAsState()
+    val context = LocalContext.current
+    var chargePct by remember { mutableStateOf<Int?>(null) }
+
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: Intent) {
+                val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0
+                val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1)
+                chargePct = if (plugged && level >= 0) level * 100 / scale else null
+            }
+        }
+        val sticky = context.registerReceiver(receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        if (sticky != null) receiver.onReceive(context, sticky)
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
+    }
+
+    when {
+        media != null -> {
+            val m = media!!
+            Row(
+                Modifier.fillMaxWidth().padding(top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "♫  ${m.title}" + if (m.artist.isNotEmpty()) " · ${m.artist}" else "",
+                    fontSize = 14.sp,
+                    color = ink,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = textStyle,
+                    modifier = Modifier.weight(1f).clickable { vm.launchPackage(m.packageName) },
+                )
+                Text(
+                    if (m.isPlaying) "  ⏸  " else "  ▶  ",
+                    fontSize = 15.sp,
+                    color = ink,
+                    style = textStyle,
+                    modifier = Modifier.clickable { vm.toggleMediaPlayPause() },
+                )
+                Text(
+                    "⏭",
+                    fontSize = 15.sp,
+                    color = ink,
+                    style = textStyle,
+                    modifier = Modifier.clickable { vm.skipMediaNext() },
+                )
+            }
+        }
+        chargePct != null -> {
+            Text(
+                "⚡ En charge · $chargePct %",
+                fontSize = 14.sp,
+                color = ink.copy(alpha = 0.9f),
+                style = textStyle,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
     }
 }
 
@@ -873,6 +943,47 @@ private fun AppDrawer(vm: HomeViewModel, cols: Int, accent: Color, badged: Set<S
                 )
             }
             SearchField(vm)
+            val math = vm.mathResult
+            if (math != null) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    color = DrawerField,
+                ) {
+                    Row(
+                        Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(vm.query.trim(), color = Color.White.copy(alpha = 0.7f), fontSize = 15.sp, modifier = Modifier.weight(1f))
+                        Text("= $math", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            } else if (vm.query.isNotBlank()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .clickable { vm.searchWeb() },
+                    shape = RoundedCornerShape(18.dp),
+                    color = DrawerField,
+                ) {
+                    Row(
+                        Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Default.Search, null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "Rechercher « ${vm.query.trim()} » sur le Web",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
             val apps = vm.results
             if (apps.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

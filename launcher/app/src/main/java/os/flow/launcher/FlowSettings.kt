@@ -17,6 +17,7 @@ data class FlowSettings(
     val swipeDownNotifications: Boolean = true,
     val doubleTapAction: DoubleTapAction = DoubleTapAction.SEARCH,
     val hiddenKeys: Set<String> = emptySet(),
+    val dynamicIsland: Boolean = true,
 )
 
 internal fun readFlowSettings(prefs: SharedPreferences): FlowSettings = FlowSettings(
@@ -28,6 +29,7 @@ internal fun readFlowSettings(prefs: SharedPreferences): FlowSettings = FlowSett
         DoubleTapAction.valueOf(prefs.getString(KEY_DOUBLE_TAP, null) ?: DoubleTapAction.SEARCH.name)
     }.getOrDefault(DoubleTapAction.SEARCH),
     hiddenKeys = prefs.getStringSet(KEY_HIDDEN_KEYS, emptySet()).orEmpty().toSet(),
+    dynamicIsland = prefs.getBoolean(KEY_DYNAMIC_ISLAND, true),
 )
 
 internal fun writeFlowSettings(prefs: SharedPreferences, s: FlowSettings) {
@@ -38,6 +40,7 @@ internal fun writeFlowSettings(prefs: SharedPreferences, s: FlowSettings) {
         .putBoolean(KEY_SWIPE_DOWN_NOTIFS, s.swipeDownNotifications)
         .putString(KEY_DOUBLE_TAP, s.doubleTapAction.name)
         .putStringSet(KEY_HIDDEN_KEYS, s.hiddenKeys)
+        .putBoolean(KEY_DYNAMIC_ISLAND, s.dynamicIsland)
         .apply()
 }
 
@@ -47,3 +50,4 @@ private const val KEY_SHOW_LABELS = "pref_show_labels"
 private const val KEY_SWIPE_DOWN_NOTIFS = "pref_swipe_down_notifs"
 private const val KEY_DOUBLE_TAP = "pref_double_tap"
 private const val KEY_HIDDEN_KEYS = "pref_hidden_keys"
+private const val KEY_DYNAMIC_ISLAND = "pref_dynamic_island"

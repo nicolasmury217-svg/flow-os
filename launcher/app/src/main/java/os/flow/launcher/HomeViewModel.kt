@@ -50,7 +50,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Pastilles de notifications actives (paquets avec notification non lue). */
     val badgedPackages: StateFlow<Set<String>> = FlowNotificationListener.badgedPackages
+    /** Média en cours de lecture (Spotify, etc.). */
+    val nowPlaying: StateFlow<NowPlaying?> = FlowNotificationListener.nowPlaying
     var notificationAccessGranted by mutableStateOf(FlowNotificationListener.isEnabled(app)); private set
+    var overlayPermissionGranted by mutableStateOf(Settings.canDrawOverlays(app)); private set
 
     /** Widget Météo Pixel hébergé en haut de la première page (-1 : aucun). */
     var weatherWidgetId by mutableStateOf(-1)
@@ -70,13 +73,25 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         val next = transform(settings)
         settings = next
         writeFlowSettings(prefs, next)
+        FlowIslandService.sync(getApplication(), next.dynamicIsland)
     }
 
-    fun refreshNotificationAccess() {
-        notificationAccessGranted = FlowNotificationListener.isEnabled(getApplication())
+    fun refreshPermissions() {
+        val app: Application = getApplication()
+        notificationAccessGranted = FlowNotificationListener.isEnabled(app)
+        overlayPermissionGranted = Settings.canDrawOverlays(app)
+        FlowIslandService.sync(app, settings.dynamicIsland)
     }
 
     fun openNotificationAccessSettings() = repo.openNotificationAccessSettings()
+    fun openOverlayPermissionSettings() = repo.openOverlayPermissionSettings()
+    fun searchWeb() { val q = query.trim(); if (q.isNotEmpty()) { repo.searchWeb(q); closeDrawer() } }
+    fun launchPackage(pkg: String) = repo.launchPackage(pkg)
+    fun toggleMediaPlayPause() = FlowNotificationListener.togglePlayPause()
+    fun skipMediaNext() = FlowNotificationListener.skipNext()
+
+    /** Résultat instantané de calculatrice si la saisie dans le tiroir est une opération. */
+    val mathResult: String? by derivedStateOf { evaluateQuickMath(query) }
 
     fun addExtraWidget(id: Int) {
         if (id <= 0 || id in extraWidgetIds) return
@@ -101,7 +116,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             byKey = list.associateBy { it.key }
             syncLayout(list)
             refreshGoogle()
-            refreshNotificationAccess()
+            refreshPermissions()
         }
     }
 

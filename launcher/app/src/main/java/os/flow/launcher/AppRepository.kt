@@ -143,6 +143,36 @@ class AppRepository(private val context: Context) {
         }
     }
 
+    fun openOverlayPermissionSettings() {
+        runCatching {
+            context.startActivity(
+                Intent(
+                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    android.net.Uri.parse("package:${context.packageName}"),
+                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }
+    }
+
+    /** Recherche Web directe depuis le tiroir d'applis. */
+    fun searchWeb(query: String) {
+        val uri = android.net.Uri.parse("https://www.google.com/search?q=" + android.net.Uri.encode(query))
+        startFirst(
+            Intent(Intent.ACTION_WEB_SEARCH).setPackage(GOOGLE_APP)
+                .putExtra(android.app.SearchManager.QUERY, query)
+                .takeIf { googleAppEnabled() } ?: Intent(Intent.ACTION_VIEW, uri),
+            Intent(Intent.ACTION_VIEW, uri),
+        )
+    }
+
+    fun launchPackage(pkg: String) {
+        runCatching {
+            context.packageManager.getLaunchIntentForPackage(pkg)
+                ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                ?.let { context.startActivity(it) }
+        }
+    }
+
     fun launch(app: AppEntry): Boolean = runCatching {
         launcherApps.startMainActivity(
             android.content.ComponentName(app.packageName, app.activityName), app.user, null, null,

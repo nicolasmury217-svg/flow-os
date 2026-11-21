@@ -161,6 +161,25 @@ internal fun FlowSettingsOverlay(
                     }
                     item { HorizontalDivider(color = Color.White.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 6.dp)) }
                     item {
+                        SettingsSwitchRow(
+                            title = "Flow Island (Dynamic Island)",
+                            subtitle = if (vm.overlayPermissionGranted) {
+                                "Pilule animée autour de la caméra (musique, notifications, charge)"
+                            } else {
+                                "Autoriser « Afficher par-dessus les autres applis » pour l'activer"
+                            },
+                            checked = s.dynamicIsland && vm.overlayPermissionGranted,
+                            onCheckedChange = { enabled ->
+                                if (enabled && !vm.overlayPermissionGranted) {
+                                    vm.updateSettings { c -> c.copy(dynamicIsland = true) }
+                                    vm.openOverlayPermissionSettings()
+                                } else {
+                                    vm.updateSettings { c -> c.copy(dynamicIsland = enabled) }
+                                }
+                            },
+                        )
+                    }
+                    item {
                         SettingsActionRow(
                             title = "Pastilles de notification",
                             subtitle = if (vm.notificationAccessGranted) {
