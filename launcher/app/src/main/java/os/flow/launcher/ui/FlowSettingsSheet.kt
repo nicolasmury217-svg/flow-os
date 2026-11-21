@@ -63,7 +63,7 @@ internal fun FlowSettingsOverlay(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    if (showHiddenPicker) "Applis masquées" else "Réglages Flow",
+                    if (showHiddenPicker) "Applis masquées" else "Paramètres Flow",
                     color = Color.White,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -213,6 +213,39 @@ internal fun FlowSettingsOverlay(
                             subtitle = "Crée les dossiers « Google » et « IA » en tête de l'accueil",
                             value = "Organiser",
                             onClick = { vm.organizeGoogleAndAi(); onClose() },
+                        )
+                    }
+                    item { HorizontalDivider(color = Color.White.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 6.dp)) }
+                    item {
+                        SettingsActionRow(
+                            title = "Luminosité très faible (Extra Dim)",
+                            subtitle = "Descendre la luminosité sous le minimum matériel",
+                            value = "Ouvrir",
+                            onClick = { vm.openExtraDimSettings() },
+                        )
+                    }
+                    item {
+                        SettingsActionRow(
+                            title = "Sons & sonneries",
+                            subtitle = "Volume, sonnerie, notification et alarme",
+                            value = "Ouvrir",
+                            onClick = { vm.openSoundSettings() },
+                        )
+                    }
+                    item {
+                        SettingsActionRow(
+                            title = "Fond d'écran & couleurs",
+                            subtitle = "Changer le fond d'écran et les couleurs Material You",
+                            value = "Ouvrir",
+                            onClick = { vm.openWallpaperPicker() },
+                        )
+                    }
+                    item {
+                        SettingsActionRow(
+                            title = "Jingle Flow OS",
+                            subtitle = "Lancer l'animation vidéo et sonore Flow OS",
+                            value = "Jouer",
+                            onClick = { vm.launchFlowJingle() },
                         )
                     }
                 }

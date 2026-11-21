@@ -124,7 +124,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        vm.refreshPermissions()
+        vm.reloadFromPrefs()
     }
 
     override fun onStop() {

@@ -77,7 +77,10 @@ class AppRepository(private val context: Context) {
 
     fun loadApps(): List<AppEntry> =
         launcherApps.getActivityList(null, Process.myUserHandle())
-            .filter { it.applicationInfo.packageName != context.packageName }
+            .filter {
+                !(it.applicationInfo.packageName == context.packageName &&
+                    it.componentName.className == MainActivity::class.java.name)
+            }
             .map {
                 val drawable = it.getIcon(0) ?: context.packageManager.defaultActivityIcon
                 AppEntry(
@@ -172,6 +175,23 @@ class AppRepository(private val context: Context) {
                 ?.let { context.startActivity(it) }
         }
     }
+
+    fun openExtraDimSettings() {
+        startFirst(
+            Intent("android.settings.REDUCE_BRIGHT_COLORS_SETTINGS"),
+            Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS),
+        )
+    }
+
+    fun openSoundSettings() {
+        startFirst(Intent(android.provider.Settings.ACTION_SOUND_SETTINGS))
+    }
+
+    fun openWallpaperPicker() {
+        startFirst(Intent(Intent.ACTION_SET_WALLPAPER))
+    }
+
+    fun launchFlowJingle() = launchPackage("os.flow.jingle")
 
     fun launch(app: AppEntry): Boolean = runCatching {
         launcherApps.startMainActivity(

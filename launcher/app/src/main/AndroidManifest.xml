@@ -42,5 +42,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".FlowSettingsActivity"
+            android:label="Paramètres Flow"
+            android:icon="@drawable/ic_flow_settings"
+            android:taskAffinity="os.flow.launcher.settings"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

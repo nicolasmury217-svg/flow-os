@@ -83,8 +83,24 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         FlowIslandService.sync(app, settings.dynamicIsland)
     }
 
+    /** Relit les préférences et la disposition (utile au retour depuis l'appli Paramètres Flow). */
+    fun reloadFromPrefs() {
+        settings = readFlowSettings(prefs)
+        if (prefs.contains(KEY_HOME)) {
+            homeSlots = parseHomeSlots(prefs.getString(KEY_HOME, "").orEmpty())
+        }
+        if (prefs.contains(KEY_DOCK)) {
+            dockKeys = readList(KEY_DOCK)
+        }
+        refreshPermissions()
+    }
+
     fun openNotificationAccessSettings() = repo.openNotificationAccessSettings()
     fun openOverlayPermissionSettings() = repo.openOverlayPermissionSettings()
+    fun openExtraDimSettings() = repo.openExtraDimSettings()
+    fun openSoundSettings() = repo.openSoundSettings()
+    fun openWallpaperPicker() = repo.openWallpaperPicker()
+    fun launchFlowJingle() = repo.launchFlowJingle()
     fun searchWeb() { val q = query.trim(); if (q.isNotEmpty()) { repo.searchWeb(q); closeDrawer() } }
     fun launchPackage(pkg: String) = repo.launchPackage(pkg)
     fun toggleMediaPlayPause() = FlowNotificationListener.togglePlayPause()
