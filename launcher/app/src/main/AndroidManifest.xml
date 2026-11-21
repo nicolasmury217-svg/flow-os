@@ -45,7 +45,7 @@
         <activity
             android:name=".FlowSettingsActivity"
             android:label="Paramètres Flow"
-            android:icon="@drawable/ic_flow_settings"
+            android:icon="@mipmap/ic_launcher"
             android:taskAffinity="os.flow.launcher.settings"
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode">
