@@ -141,3 +141,62 @@ fun dissolveFolder(slots: List<HomeSlot>, folderId: String): List<HomeSlot> =
         if (slot is HomeSlot.Folder && slot.id == folderId) slot.keys.map { HomeSlot.App(it) }
         else listOf(slot)
     }
+
+private val AI_PACKAGES = setOf(
+    "com.anthropic.claude",
+    "com.openai.chatgpt",
+    "com.google.android.apps.bard",
+    "dev.lovable.build",
+    "tech.butterfly.app",
+    "ai.perplexity.app.android",
+    "com.microsoft.copilot",
+    "ai.x.grok",
+    "com.deepseek.chat",
+    "ai.mistral.lechat",
+)
+
+private val EXTRA_GOOGLE_PACKAGES = setOf(
+    "com.android.chrome",
+    "com.android.vending",
+)
+
+fun packageOfKey(key: String): String = key.substringBefore("/")
+
+fun isAiPackage(pkg: String): Boolean = pkg in AI_PACKAGES
+
+fun isGooglePackage(pkg: String): Boolean =
+    !isAiPackage(pkg) && (pkg.startsWith("com.google.android.") || pkg in EXTRA_GOOGLE_PACKAGES)
+
+/**
+ * Regroupe toutes les applis Google dans un dossier « Google » et toutes les applis IA dans un
+ * dossier « IA » en tête de l'accueil, sans déplacer les applis présentes dans le dock.
+ */
+fun groupGoogleAndAi(
+    slots: List<HomeSlot>,
+    dockKeys: List<String>,
+    allKnownKeys: List<String>,
+): List<HomeSlot> {
+    val dockSet = dockKeys.toSet()
+    val googleKeys = allKnownKeys.filter { it !in dockSet && isGooglePackage(packageOfKey(it)) }
+    val aiKeys = allKnownKeys.filter { it !in dockSet && isAiPackage(packageOfKey(it)) }
+    val moved = (googleKeys + aiKeys).toSet()
+
+    var remaining = slots
+    for (k in moved) {
+        remaining = removeKeyFromSlots(remaining, k)
+    }
+    remaining = remaining.filterNot { it is HomeSlot.Folder && (it.id == "google" || it.id == "ia") }
+
+    val prefix = mutableListOf<HomeSlot>()
+    when (googleKeys.size) {
+        0 -> Unit
+        1 -> prefix += HomeSlot.App(googleKeys.first())
+        else -> prefix += HomeSlot.Folder("google", "Google", googleKeys)
+    }
+    when (aiKeys.size) {
+        0 -> Unit
+        1 -> prefix += HomeSlot.App(aiKeys.first())
+        else -> prefix += HomeSlot.Folder("ia", "IA", aiKeys)
+    }
+    return prefix + remaining
+}

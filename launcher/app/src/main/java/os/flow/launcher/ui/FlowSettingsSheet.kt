@@ -188,6 +188,14 @@ internal fun FlowSettingsOverlay(
                             onClick = { showHiddenPicker = true },
                         )
                     }
+                    item {
+                        SettingsActionRow(
+                            title = "Regrouper Google & IA",
+                            subtitle = "Crée les dossiers « Google » et « IA » en tête de l'accueil",
+                            value = "Organiser",
+                            onClick = { vm.organizeGoogleAndAi(); onClose() },
+                        )
+                    }
                 }
             }
         }

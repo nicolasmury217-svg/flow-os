@@ -75,4 +75,36 @@ class HomeSlotTest {
         assertEquals(listOf("x", "a", "b", "y"), updated.map { (it as HomeSlot.App).key })
         assertTrue(updated.all { it is HomeSlot.App })
     }
+
+    @Test
+    fun groupGoogleAndAiCreatesTwoFoldersAndPreservesDock() {
+        val allKeys = listOf(
+            "com.android.chrome/Main",
+            "com.google.android.gm/Gmail",
+            "com.google.android.apps.maps/Maps",
+            "com.google.android.apps.bard/Gemini",
+            "com.anthropic.claude/Main",
+            "com.openai.chatgpt/Main",
+            "com.spotify.music/Main",
+        )
+        val slots = allKeys.filterNot { it == "com.android.chrome/Main" }.map { HomeSlot.App(it) }
+        val dock = listOf("com.android.chrome/Main")
+        val grouped = groupGoogleAndAi(slots, dock, allKeys)
+
+        val google = grouped[0] as HomeSlot.Folder
+        assertEquals("Google", google.name)
+        assertEquals(
+            listOf("com.google.android.gm/Gmail", "com.google.android.apps.maps/Maps"),
+            google.keys,
+        )
+
+        val ia = grouped[1] as HomeSlot.Folder
+        assertEquals("IA", ia.name)
+        assertEquals(
+            listOf("com.google.android.apps.bard/Gemini", "com.anthropic.claude/Main", "com.openai.chatgpt/Main"),
+            ia.keys,
+        )
+
+        assertEquals(HomeSlot.App("com.spotify.music/Main"), grouped[2])
+    }
 }

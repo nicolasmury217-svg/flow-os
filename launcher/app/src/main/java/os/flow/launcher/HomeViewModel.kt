@@ -118,13 +118,25 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         } else {
             known.filter { it !in dock }.map { HomeSlot.App(it) }
         }
+        val finalSlots = if (!prefs.getBoolean(KEY_AUTO_GROUP_V1, false)) {
+            prefs.edit().putBoolean(KEY_AUTO_GROUP_V1, true).apply()
+            groupGoogleAndAi(slots, dock, known)
+        } else {
+            slots
+        }
         dockKeys = dock
-        homeSlots = slots
+        homeSlots = finalSlots
         prefs.edit()
             .putString(KEY_DOCK, dock.joinToString("\n"))
-            .putString(KEY_HOME, serializeHomeSlots(slots))
+            .putString(KEY_HOME, serializeHomeSlots(finalSlots))
             .putStringSet(KEY_SEEN, knownSet)
             .apply()
+    }
+
+    /** Regroupe manuellement toutes les applis Google et IA dans leurs deux dossiers en tête d'accueil. */
+    fun organizeGoogleAndAi() {
+        val known = apps.map { it.key }
+        saveSlots(groupGoogleAndAi(homeSlots, dockKeys, known))
     }
 
     private fun saveSlots(slots: List<HomeSlot>, dock: List<String> = dockKeys) {
@@ -300,6 +312,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         const val KEY_DOCK = "dock_layout_v1"
         const val KEY_SEEN = "seen_apps_v1"
         const val KEY_EXTRA_WIDGETS = "extra_widgets_v1"
+        const val KEY_AUTO_GROUP_V1 = "auto_group_google_ai_v1"
 
         fun readWidgetIds(prefs: android.content.SharedPreferences): List<Int> =
             prefs.getString(KEY_EXTRA_WIDGETS, "").orEmpty()
