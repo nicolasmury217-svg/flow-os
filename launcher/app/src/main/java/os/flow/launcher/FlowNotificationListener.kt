@@ -182,23 +182,43 @@ class FlowNotificationListener : NotificationListenerService() {
             if (_latestAlert.value?.id == id) _latestAlert.value = null
         }
 
-        fun togglePlayPause() {
-            val ctrl = currentController ?: return
-            runCatching {
-                if (ctrl.playbackState?.state == PlaybackState.STATE_PLAYING) {
-                    ctrl.transportControls.pause()
-                } else {
-                    ctrl.transportControls.play()
+        fun togglePlayPause(context: Context? = null) {
+            val ctrl = currentController
+            if (ctrl != null) {
+                runCatching {
+                    if (ctrl.playbackState?.state == PlaybackState.STATE_PLAYING) {
+                        ctrl.transportControls.pause()
+                    } else {
+                        ctrl.transportControls.play()
+                    }
+                    return
                 }
             }
+            if (context != null) dispatchMediaKey(context, android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
         }
 
-        fun skipNext() {
-            runCatching { currentController?.transportControls?.skipToNext() }
+        fun skipNext(context: Context? = null) {
+            val ctrl = currentController
+            if (ctrl != null) {
+                runCatching { ctrl.transportControls.skipToNext(); return }
+            }
+            if (context != null) dispatchMediaKey(context, android.view.KeyEvent.KEYCODE_MEDIA_NEXT)
         }
 
-        fun skipPrevious() {
-            runCatching { currentController?.transportControls?.skipToPrevious() }
+        fun skipPrevious(context: Context? = null) {
+            val ctrl = currentController
+            if (ctrl != null) {
+                runCatching { ctrl.transportControls.skipToPrevious(); return }
+            }
+            if (context != null) dispatchMediaKey(context, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS)
+        }
+
+        private fun dispatchMediaKey(context: Context, keyCode: Int) {
+            runCatching {
+                val am = context.getSystemService(android.media.AudioManager::class.java) ?: return
+                am.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, keyCode))
+                am.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, keyCode))
+            }
         }
 
         fun isEnabled(context: Context): Boolean {

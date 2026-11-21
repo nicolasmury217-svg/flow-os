@@ -276,15 +276,16 @@ class FlowIslandService : Service() {
     }
 
     private fun renderMediaCompact(media: NowPlaying) {
-        pill.background = pillBackground(dp(22).toFloat())
-        pill.setPadding(dp(14), dp(6), dp(14), dp(8))
+        pill.background = pillBackground(dp(24).toFloat())
+        // Hauteur au-dessus du titre alignée sur la barre d'état (~42dp) : les clics sous la barre ne sont jamais interceptés par SystemUI.
+        pill.setPadding(dp(14), dp(8), dp(14), dp(8))
         pill.setOnClickListener {
             mediaExpanded = true
             mainHandler.removeCallbacks(collapseMediaRunnable)
-            mainHandler.postDelayed(collapseMediaRunnable, 6_000L)
+            mainHandler.postDelayed(collapseMediaRunnable, 7_000L)
             render()
         }
-        // Rangée du haut : icône à gauche de la caméra, état lecture à droite (rien derrière le poinçon).
+        // Rangée du haut : icône à gauche de la caméra, état lecture à droite (dans la zone caméra).
         val topRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -293,35 +294,57 @@ class FlowIslandService : Service() {
             runCatching { setImageDrawable(packageManager.getApplicationIcon(media.packageName)) }
         }
         topRow.addView(iconView, LinearLayout.LayoutParams(dp(18), dp(18)))
-        topRow.addView(View(this), LinearLayout.LayoutParams(0, dp(20), 1f))
+        topRow.addView(View(this), LinearLayout.LayoutParams(0, dp(28), 1f))
         val stateBadge = TextView(this).apply {
             text = if (media.isPlaying) "♫" else "❚❚"
             setTextColor(if (media.isPlaying) Color.parseColor("#1DB954") else Color.parseColor("#9A9AA2"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         }
         topRow.addView(stateBadge)
-        pill.addView(topRow, LinearLayout.LayoutParams(dp(220), LinearLayout.LayoutParams.WRAP_CONTENT))
+        pill.addView(topRow, LinearLayout.LayoutParams(dp(236), LinearLayout.LayoutParams.WRAP_CONTENT))
 
-        // Titre complet sous la caméra, avec défilement fluide (marquee) s'il est long.
+        // Titre + contrôles directement sous la barre d'état (100 % cliquables par-dessus toutes les applis).
+        val bottomRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(4), 0, 0)
+        }
         val title = TextView(this).apply {
             text = if (media.artist.isNotEmpty()) "${media.title} · ${media.artist}" else media.title
             setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            gravity = Gravity.CENTER_HORIZONTAL
             isSingleLine = true
             ellipsize = TextUtils.TruncateAt.MARQUEE
             marqueeRepeatLimit = -1
             isSelected = true
-            setPadding(0, dp(3), 0, 0)
+            setOnClickListener {
+                mediaExpanded = true
+                mainHandler.removeCallbacks(collapseMediaRunnable)
+                mainHandler.postDelayed(collapseMediaRunnable, 7_000L)
+                render()
+            }
         }
-        pill.addView(title, LinearLayout.LayoutParams(dp(220), LinearLayout.LayoutParams.WRAP_CONTENT))
+        bottomRow.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+
+        fun miniBtn(symbol: String, action: () -> Unit): TextView = TextView(this).apply {
+            text = symbol
+            setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(4), dp(8), dp(4))
+            setOnClickListener { action() }
+        }
+        bottomRow.addView(miniBtn("⏮") { FlowNotificationListener.skipPrevious(this) })
+        bottomRow.addView(miniBtn(if (media.isPlaying) "⏸" else "▶") { FlowNotificationListener.togglePlayPause(this) })
+        bottomRow.addView(miniBtn("⏭") { FlowNotificationListener.skipNext(this) })
+        pill.addView(bottomRow, LinearLayout.LayoutParams(dp(256), LinearLayout.LayoutParams.WRAP_CONTENT))
     }
 
     private fun renderMediaExpanded(media: NowPlaying) {
         pill.background = pillBackground(dp(28).toFloat())
-        // Espace en haut pour dégager le poinçon caméra.
-        pill.setPadding(dp(16), dp(28), dp(16), dp(12))
+        // Espace en haut (38dp) pour que le header et les boutons soient entièrement sous la barre d'état.
+        pill.setPadding(dp(16), dp(38), dp(16), dp(14))
         pill.setOnClickListener {
             mediaExpanded = false
             mainHandler.removeCallbacks(collapseMediaRunnable)
@@ -386,18 +409,18 @@ class FlowIslandService : Service() {
         fun ctrlBtn(symbol: String, action: () -> Unit): TextView = TextView(this).apply {
             text = symbol
             setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
             gravity = Gravity.CENTER
-            setPadding(dp(22), dp(4), dp(22), dp(4))
+            setPadding(dp(24), dp(6), dp(24), dp(6))
             setOnClickListener {
                 action()
                 mainHandler.removeCallbacks(collapseMediaRunnable)
-                mainHandler.postDelayed(collapseMediaRunnable, 6_000L)
+                mainHandler.postDelayed(collapseMediaRunnable, 7_000L)
             }
         }
-        controls.addView(ctrlBtn("⏮") { FlowNotificationListener.skipPrevious() })
-        controls.addView(ctrlBtn(if (media.isPlaying) "⏸" else "▶") { FlowNotificationListener.togglePlayPause() })
-        controls.addView(ctrlBtn("⏭") { FlowNotificationListener.skipNext() })
+        controls.addView(ctrlBtn("⏮") { FlowNotificationListener.skipPrevious(this) })
+        controls.addView(ctrlBtn(if (media.isPlaying) "⏸" else "▶") { FlowNotificationListener.togglePlayPause(this) })
+        controls.addView(ctrlBtn("⏭") { FlowNotificationListener.skipNext(this) })
         pill.addView(controls)
     }
 
