@@ -248,6 +248,14 @@ internal fun FlowSettingsOverlay(
                             onClick = { vm.launchFlowJingle() },
                         )
                     }
+                    item {
+                        Text(
+                            "Flow OS · v1.1.0",
+                            color = Color.White.copy(alpha = 0.45f),
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 18.dp, bottom = 24.dp, start = 4.dp),
+                        )
+                    }
                 }
             }
         }
