@@ -237,6 +237,7 @@ class FlowIslandService : Service() {
             media != null -> renderMediaCompact(media)
             else -> renderIdle()
         }
+        runCatching { wm.updateViewLayout(container, container.layoutParams) }
     }
 
     private fun renderIdle() {

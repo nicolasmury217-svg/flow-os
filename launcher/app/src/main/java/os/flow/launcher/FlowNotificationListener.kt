@@ -88,12 +88,18 @@ class FlowNotificationListener : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         publishActive()
         publishActiveCall()
+        if (sbn?.notification?.category == Notification.CATEGORY_TRANSPORT) {
+            refreshMediaFromSystem()
+        }
         if (sbn != null && !isCallNotification(sbn.notification)) emitAlert(sbn)
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         publishActive()
         publishActiveCall()
+        if (sbn?.notification?.category == Notification.CATEGORY_TRANSPORT) {
+            refreshMediaFromSystem()
+        }
     }
 
     override fun onListenerDisconnected() {
@@ -110,7 +116,15 @@ class FlowNotificationListener : NotificationListenerService() {
             val cn = ComponentName(this, FlowNotificationListener::class.java)
             msm.addOnActiveSessionsChangedListener(sessionsListener, cn)
             attachController(msm.getActiveSessions(cn))
-        }
+        }.onFailure { android.util.Log.w("FlowIsland", "registerMediaSessions échoué", it) }
+    }
+
+    private fun refreshMediaFromSystem() {
+        runCatching {
+            val msm = getSystemService(MediaSessionManager::class.java) ?: return
+            val cn = ComponentName(this, FlowNotificationListener::class.java)
+            attachController(msm.getActiveSessions(cn))
+        }.onFailure { android.util.Log.w("FlowIsland", "refreshMediaFromSystem échoué", it) }
     }
 
     private fun unregisterMediaSessions() {
@@ -140,17 +154,21 @@ class FlowNotificationListener : NotificationListenerService() {
         val pb = ctrl?.playbackState
         val state = pb?.state
         val active = state == PlaybackState.STATE_PLAYING || state == PlaybackState.STATE_PAUSED
-        val title = meta?.getString(MediaMetadata.METADATA_KEY_TITLE)?.trim().orEmpty()
+        val title = meta?.getString(MediaMetadata.METADATA_KEY_TITLE)?.trim()?.takeIf { it.isNotEmpty() }
+            ?: meta?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)?.trim().orEmpty()
         if (ctrl == null || !active || title.isEmpty()) {
+            android.util.Log.d("FlowIsland", "publishMedia -> null (ctrl=${ctrl?.packageName}, state=$state, title='$title')")
             _nowPlaying.value = null
             return
         }
-        val artist = meta?.getString(MediaMetadata.METADATA_KEY_ARTIST)?.trim().orEmpty()
+        val artist = meta?.getString(MediaMetadata.METADATA_KEY_ARTIST)?.trim()?.takeIf { it.isNotEmpty() }
+            ?: meta?.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE)?.trim().orEmpty()
         val rawArt = meta?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
             ?: meta?.getBitmap(MediaMetadata.METADATA_KEY_ART)
             ?: meta?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
         val art = rawArt?.let { runCatching { Bitmap.createScaledBitmap(it, 128, 128, true) }.getOrNull() }
         val duration = meta?.getLong(MediaMetadata.METADATA_KEY_DURATION)?.coerceAtLeast(0L) ?: 0L
+        android.util.Log.d("FlowIsland", "publishMedia -> $title / $artist (playing=${state == PlaybackState.STATE_PLAYING}, art=${art != null}, dur=$duration)")
         _nowPlaying.value = NowPlaying(
             packageName = ctrl.packageName,
             title = title,
