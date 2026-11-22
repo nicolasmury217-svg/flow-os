@@ -4,10 +4,12 @@ import android.app.Notification
 import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
+import android.graphics.Bitmap
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
+import android.os.SystemClock
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -21,7 +23,20 @@ data class NowPlaying(
     val title: String,
     val artist: String,
     val isPlaying: Boolean,
-)
+    val albumArt: Bitmap? = null,
+    val durationMs: Long = 0L,
+    val positionMs: Long = 0L,
+    val positionUpdateTimeMs: Long = 0L,
+    val playbackSpeed: Float = 1f,
+) {
+    /** Position courante extrapolée en millisecondes. */
+    fun currentPositionMs(): Long {
+        if (!isPlaying || positionUpdateTimeMs <= 0L) return positionMs.coerceAtLeast(0L)
+        val elapsed = (SystemClock.elapsedRealtime() - positionUpdateTimeMs).coerceAtLeast(0L)
+        val raw = positionMs + (elapsed * playbackSpeed).toLong()
+        return if (durationMs > 0L) raw.coerceIn(0L, durationMs) else raw.coerceAtLeast(0L)
+    }
+}
 
 /** Notification récente à afficher brièvement dans Flow Island. */
 data class IslandAlert(
@@ -42,6 +57,8 @@ data class IslandCall(
     val answerIntent: PendingIntent?,
     val declineIntent: PendingIntent?,
     val contentIntent: PendingIntent?,
+    val avatar: Bitmap? = null,
+    val startedAtMs: Long = System.currentTimeMillis(),
 )
 
 /**
@@ -120,7 +137,8 @@ class FlowNotificationListener : NotificationListenerService() {
     private fun publishMedia() {
         val ctrl = activeController
         val meta = ctrl?.metadata
-        val state = ctrl?.playbackState?.state
+        val pb = ctrl?.playbackState
+        val state = pb?.state
         val active = state == PlaybackState.STATE_PLAYING || state == PlaybackState.STATE_PAUSED
         val title = meta?.getString(MediaMetadata.METADATA_KEY_TITLE)?.trim().orEmpty()
         if (ctrl == null || !active || title.isEmpty()) {
@@ -128,11 +146,21 @@ class FlowNotificationListener : NotificationListenerService() {
             return
         }
         val artist = meta?.getString(MediaMetadata.METADATA_KEY_ARTIST)?.trim().orEmpty()
+        val rawArt = meta?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+            ?: meta?.getBitmap(MediaMetadata.METADATA_KEY_ART)
+            ?: meta?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+        val art = rawArt?.let { runCatching { Bitmap.createScaledBitmap(it, 128, 128, true) }.getOrNull() }
+        val duration = meta?.getLong(MediaMetadata.METADATA_KEY_DURATION)?.coerceAtLeast(0L) ?: 0L
         _nowPlaying.value = NowPlaying(
             packageName = ctrl.packageName,
             title = title,
             artist = artist,
             isPlaying = state == PlaybackState.STATE_PLAYING,
+            albumArt = art,
+            durationMs = duration,
+            positionMs = pb?.position?.coerceAtLeast(0L) ?: 0L,
+            positionUpdateTimeMs = pb?.lastPositionUpdateTime ?: 0L,
+            playbackSpeed = pb?.playbackSpeed ?: 1f,
         )
     }
 
@@ -199,7 +227,10 @@ class FlowNotificationListener : NotificationListenerService() {
                 }
 
                 val subtitle = extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim().orEmpty()
-                    .ifEmpty { if (answerIntent != null) "Appel entrant" else "Appel en cours" }
+                    .ifEmpty { if (answerIntent != null) "mobile" else "Appel en cours" }
+                val avatarDrawable = runCatching { person?.icon?.loadDrawable(this) }.getOrNull()
+                    ?: runCatching { n.getLargeIcon()?.loadDrawable(this) }.getOrNull()
+                val avatarBmp = drawableToSquareBitmap(avatarDrawable, 128)
 
                 IslandCall(
                     key = sbn.key,
@@ -209,6 +240,8 @@ class FlowNotificationListener : NotificationListenerService() {
                     answerIntent = answerIntent,
                     declineIntent = declineIntent,
                     contentIntent = n.contentIntent,
+                    avatar = avatarBmp,
+                    startedAtMs = if (sbn.postTime > 0L) sbn.postTime else System.currentTimeMillis(),
                 )
             }
         }.getOrNull()
